@@ -12,9 +12,11 @@
 #include "lwip/tcp.h"
 #include "lwip/netif.h"
 
+// configuração do wifi
 #define WIFI_SSID "SSID"
 #define WIFI_PASSWORD "PASSWORD"
 
+// Pino do LED de status do Wi-Fi
 #define LED_PIN CYW43_WL_GPIO_LED_PIN
 
 // pino do botão
@@ -54,8 +56,11 @@ bool sala[NUM_PIXELS] = {
     1, 1, 0, 0, 0,
     0, 0, 0, 1, 1};
 
+// Funções de servidor TCP
 static err_t tcp_server_accept(void *arg, struct tcp_pcb *newpcb, err_t err);
 static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
+
+// Função que lida com o pedido do usuário
 void user_request(char **request);
 
 // Trecho para modo BOOTSEL com botão B
@@ -81,7 +86,8 @@ int main()
     int sm = 0;
     uint offset = pio_add_program(pio, &ws2812_program);
     ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000, IS_RGBW);
-
+    
+    // Tentativa de inicializar o Wi-Fi
     while (cyw43_arch_init())
     {
         printf("Falha ao inicializar Wi-Fi\n");
@@ -89,11 +95,14 @@ int main()
         return -1;
     }
 
+    // Desliga o LED de status do Wi-Fi
     cyw43_arch_gpio_put(LED_PIN, 0);
 
+    // Configura o Wi-Fi para o modo cliente
     cyw43_arch_enable_sta_mode();
 
     printf("Conectando ao Wi-Fi...\n");
+    // Tentativa de conexão ao Wi-Fi
     while (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 50000))
     {
         printf("Falha ao conectar ao Wi-Fi\n");
@@ -106,7 +115,8 @@ int main()
     {
         printf("IP do dispositivo: %s\n", ipaddr_ntoa(&netif_default->ip_addr));
     }
-
+    
+    // Configuração do servidor TCP
     struct tcp_pcb *server = tcp_new();
     if (!server)
     {
@@ -120,30 +130,35 @@ int main()
         return -1;
     }
 
+    // Inicia o servidor TCP
     server = tcp_listen(server);
 
+    // Configura a função de aceitação de conexão
     tcp_accept(server, tcp_server_accept);
     printf("Servidor ouvindo na porta 80\n");
 
     while (true)
     {
-        cyw43_arch_poll();
+        cyw43_arch_poll(); //mantém a conexão ativa
         sleep_ms(100);
     }
 
+    // "Desinicializa" a arquitetura do Wi-Fi
     cyw43_arch_deinit();
     return 0;
 }
 
+// Função de aceitação de conexão TCP
 static err_t tcp_server_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
 {
     tcp_recv(newpcb, tcp_server_recv);
     return ERR_OK;
 }
 
+// Função que trata as requisições HTTP dos usuários
 void user_request(char **request)
 {
-
+    // Checa se a requisição contém um comando para acender ou apagar uma luz
     if (strstr(*request, "GET /acender_luz_garagem") != NULL)
     {
         atualizarLeds(garagem, true);
@@ -186,6 +201,7 @@ void user_request(char **request)
     }
 };
 
+// Função que recebe dados da conexão TCP
 static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
     if (!p)
@@ -232,12 +248,14 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
              "</body>\n"
              "</html>\n");
 
+    // Envia a resposta HTTP com o HTML
     tcp_write(tpcb, html, strlen(html), TCP_WRITE_FLAG_COPY);
 
+    // Envia os dados para o cliente
     tcp_output(tpcb);
 
+    // libera a memória e o buffer de dados
     free(request);
-
     pbuf_free(p);
 
     return ERR_OK;
