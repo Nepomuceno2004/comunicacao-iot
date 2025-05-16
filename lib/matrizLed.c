@@ -1,10 +1,18 @@
 #include "matrizLed.h"
+#include "generated/ws2812.pio.h"
 
 // Ajuste pio0 e sm=0 se você estiver usando outros
 #define WS2812_PIO pio0
 #define WS2812_SM 0
 
 uint32_t pixels[NUM_PIXELS] = {0};
+
+void matriz_init()
+{
+    // inicialização da matriz de led
+    uint offset = pio_add_program(WS2812_PIO, &ws2812_program);
+    ws2812_program_init(WS2812_PIO, WS2812_SM, offset, WS2812_PIN, 800000, IS_RGBW);
+}
 
 uint32_t urgb_u32(uint8_t r, uint8_t g, uint8_t b)
 {

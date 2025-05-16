@@ -32,6 +32,7 @@ include_directories(${CMAKE_SOURCE_DIR}/lib)
 add_executable(comunicacao-iot 
         comunicacao-iot.c 
         lib/matrizLed.c
+        lib/joystick.c
 )
 
 pico_set_program_name(comunicacao-iot "comunicacao-iot")
@@ -49,6 +50,7 @@ target_link_libraries(comunicacao-iot
         pico_stdlib
         hardware_pio
         hardware_gpio
+        hardware_adc
         pico_cyw43_arch_lwip_threadsafe_background
 )
 

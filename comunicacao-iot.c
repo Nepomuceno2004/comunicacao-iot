@@ -2,8 +2,9 @@
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/gpio.h"
-#include "generated/ws2812.pio.h" 
+
 #include "lib/matrizLed.h"
+#include "lib/joystick.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -22,10 +23,13 @@
 // pino do botão
 #define botaoB 6
 
-// pinos da matriz de led
-#define IS_RGBW false
-#define WS2812_PIN 7
-#define NUM_PIXELS 25
+double temperatura = 25.0; // Começa com 25°C
+double ph = 7.0;           // Começa 7.0 de ph
+
+#define MAX_PH 14.0
+#define MIN_PH 0.0
+
+#define STEP 0.4 // Passo de variação para cada movimento do joystick
 
 // matrizes que definem quais leds acendem
 bool escritorio[NUM_PIXELS] = {
@@ -81,12 +85,9 @@ int main()
     gpio_set_irq_enabled_with_callback(botaoB, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     // Aqui termina o trecho para modo BOOTSEL com botão B
 
-    // inicialização da matriz de led
-    PIO pio = pio0;
-    int sm = 0;
-    uint offset = pio_add_program(pio, &ws2812_program);
-    ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000, IS_RGBW);
-    
+    matriz_init();
+    joystick_init();
+
     // Tentativa de inicializar o Wi-Fi
     while (cyw43_arch_init())
     {
@@ -115,7 +116,7 @@ int main()
     {
         printf("IP do dispositivo: %s\n", ipaddr_ntoa(&netif_default->ip_addr));
     }
-    
+
     // Configuração do servidor TCP
     struct tcp_pcb *server = tcp_new();
     if (!server)
@@ -139,13 +140,34 @@ int main()
 
     while (true)
     {
-        cyw43_arch_poll(); //mantém a conexão ativa
+        cyw43_arch_poll(); // mantém a conexão ativa
         sleep_ms(100);
     }
 
     // "Desinicializa" a arquitetura do Wi-Fi
     cyw43_arch_deinit();
     return 0;
+}
+
+void condition_read(void)
+{
+    int16_t dx, dy;
+    joystick_leitura_corrigida(&dx, &dy);
+    printf("Temperatura X: %i, PH Y: %d\n", dx, dy);
+
+    // Ajuste de temperatura (eixo X)
+    temperatura += (dx > 0) ? STEP : -STEP;
+
+    // Ajuste de ph (eixo Y)
+    if (abs(dy) > 50)
+    {
+        if ((ph - STEP >= 0) && (ph + STEP <= 14))
+        {
+            ph += (dy > 0) ? STEP : -STEP;
+        }
+    }
+
+    return;
 }
 
 // Função de aceitação de conexão TCP
@@ -159,35 +181,35 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
 void user_request(char **request)
 {
     // Checa se a requisição contém um comando para acender ou apagar uma luz
-    if (strstr(*request, "GET /acender_luz_garagem") != NULL)
+    if (strstr(*request, "GET /garagem_on") != NULL)
     {
         atualizarLeds(garagem, true);
     }
-    else if (strstr(*request, "GET /desligar_luz_garagem") != NULL)
+    else if (strstr(*request, "GET /garagem_off") != NULL)
     {
         atualizarLeds(garagem, false);
     }
-    else if (strstr(*request, "GET /acender_luz_sala") != NULL)
+    else if (strstr(*request, "GET /sala_on") != NULL)
     {
         atualizarLeds(sala, true);
     }
-    else if (strstr(*request, "GET /desligar_luz_sala") != NULL)
+    else if (strstr(*request, "GET /sala_off") != NULL)
     {
         atualizarLeds(sala, false);
     }
-    else if (strstr(*request, "GET /acender_luz_quarto") != NULL)
+    else if (strstr(*request, "GET /quarto_on") != NULL)
     {
         atualizarLeds(quarto, true);
     }
-    else if (strstr(*request, "GET /desligar_luz_quarto") != NULL)
+    else if (strstr(*request, "GET /quarto_off") != NULL)
     {
         atualizarLeds(quarto, false);
     }
-    else if (strstr(*request, "GET /acender_luz_escritorio") != NULL)
+    else if (strstr(*request, "GET /escritorio_on") != NULL)
     {
         atualizarLeds(escritorio, true);
     }
-    else if (strstr(*request, "GET /desligar_luz_escritorio") != NULL)
+    else if (strstr(*request, "GET /escritorio_off") != NULL)
     {
         atualizarLeds(escritorio, false);
     }
@@ -219,6 +241,8 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
 
     user_request(&request);
 
+    condition_read();
+
     char html[1024];
 
     snprintf(html, sizeof(html),
@@ -229,28 +253,32 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
              "<html>\n"
              "<head>\n"
              "<title>Luzes</title>\n"
+             "<meta http-equiv='refresh' content='5'>" // Atualiza a página a cada 5 segundos
              "<style>\n"
-             "body { background:#191919; font-family:sans-serif; text-align:center; margin-top:50px; }\n"
-             "h1 { color:#fff; font-size:48px; margin-bottom:20px; }\n"
-             "button { background:LightGray; font-size:24px; margin:6px; padding:10px 20px; border-radius:8px; }\n"
+             "body{background:#191919;font-family:sans-serif;text-align:center;margin-top:50px;}\n"
+             "h1{color:#fff;font-size:30px;margin-bottom:20px;}\n"
+             "button{background:LightGray;font-size:24px;margin:6px;padding:10px 20px;border-radius:8px;}\n"
              "</style>\n"
              "</head>\n"
              "<body>\n"
              "<h1>Luzes</h1>\n"
-             "<form action=\"./acender_luz_garagem\"><button>Acender Garagem</button></form>\n"
-             "<form action=\"./desligar_luz_garagem\"><button>Desligar Garagem</button></form>\n"
-             "<form action=\"./acender_luz_sala\"><button>Acender Sala</button></form>\n"
-             "<form action=\"./desligar_luz_sala\"><button>Desligar Sala</button></form>\n"
-             "<form action=\"./acender_luz_quarto\"><button>Acender Quarto</button></form>\n"
-             "<form action=\"./desligar_luz_quarto\"><button>Desligar Quarto</button></form>\n"
-             "<form action=\"./acender_luz_escritorio\"><button>Acender Escritorio</button></form>\n"
-             "<form action=\"./desligar_luz_escritorio\"><button>Desligar Escritorio</button></form>\n"
+             "<form action=\"./sala_on\"><button>Sala ON</button></form>\n"
+             "<form action=\"./sala_off\"><button>Sala OFF</button></form>\n"
+             "<form action=\"./quarto_on\"><button>Quarto ON</button></form>\n"
+             "<form action=\"./quarto_off\"><button>Quarto OFF</button></form>\n"
+             "<form action=\"./escritorio_on\"><button>Escritorio ON</button></form>\n"
+             "<form action=\"./escritorio_off\"><button>Escritorio OFF</button></form>\n"
+             "<form action=\"./garagem_on\"><button>Garagem ON</button></form>\n"
+             "<form action=\"./garagem_off\"><button>Garagem OFF</button></form>\n"
+             "<h1><b>AQUARIO:</b></h1>\n"
+             "<h1>Temperatura: %.2f C</h1>\n"
+             "<h1>PH: %.2f</h1>\n"
              "</body>\n"
-             "</html>\n");
+             "</html>\n",
+             temperatura, ph);
 
     // Envia a resposta HTTP com o HTML
     tcp_write(tpcb, html, strlen(html), TCP_WRITE_FLAG_COPY);
-
     // Envia os dados para o cliente
     tcp_output(tpcb);
 
