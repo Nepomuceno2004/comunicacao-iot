@@ -23,9 +23,11 @@
 // pino do botão
 #define botaoB 6
 
+//variáveis das condições
 double temperatura = 25.0; // Começa com 25°C
 double ph = 7.0;           // Começa 7.0 de ph
 
+//limites do ph
 #define MAX_PH 14.0
 #define MIN_PH 0.0
 
@@ -66,6 +68,8 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
 
 // Função que lida com o pedido do usuário
 void user_request(char **request);
+
+void condition_read(void);
 
 // Trecho para modo BOOTSEL com botão B
 #include "pico/bootrom.h"
@@ -284,6 +288,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
 
     // Envia a resposta HTTP com o HTML
     tcp_write(tpcb, html, strlen(html), TCP_WRITE_FLAG_COPY);
+    
     // Envia os dados para o cliente
     tcp_output(tpcb);
 
