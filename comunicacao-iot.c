@@ -156,14 +156,18 @@ void condition_read(void)
     // printf("Temperatura X: %i, PH Y: %d\n", dx, dy);
 
     // Ajuste de temperatura (eixo X)
-    temperatura += (dx > 0) ? STEP : -STEP;
+    if (abs(dx) > 200)
+    {
+        temperatura += (dx > 0) ? STEP : -STEP;
+    }
 
     // Ajuste de ph (eixo Y)
-    if (abs(dy) > 50)
+    if (abs(dy) > 200)
     {
-        if ((ph - STEP >= 0) && (ph + STEP <= 14))
+        float novo_ph = ph + ((dy > 0) ? STEP : -STEP);
+        if (novo_ph >= 0 && novo_ph <= 14)
         {
-            ph += (dy > 0) ? STEP : -STEP;
+            ph = novo_ph;
         }
     }
 
@@ -253,8 +257,8 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
              "<html>"
              "<head>"
              "<meta charset='UTF-8'>"
-             "<title>Luzes</title>"
-             "<script>setInterval(function(){location.href='/'; }, 3000);</script>"
+             "<title>ControleFacil</title>"
+             "<script>setInterval(function(){location.href='/'; }, 5000);</script>"
              "<style>"
              "body{background:#191919;font-family:sans-serif;text-align:center;margin-top:50px;}"
              "h1{color:#fff;font-size:30px;margin-bottom:20px;}"
@@ -262,7 +266,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
              "</style>"
              "</head>"
              "<body>"
-             "<h1>ControleFácil</h1>"
+             "<h1>LUZES</h1>"
              "<form action=\"./sala_on\"><button>Sala ON</button></form>"
              "<form action=\"./sala_off\"><button>Sala OFF</button></form>"
              "<form action=\"./quarto_on\"><button>Quarto ON</button></form>"
@@ -271,8 +275,8 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
              "<form action=\"./escritorio_off\"><button>Escritorio OFF</button></form>"
              "<form action=\"./garagem_on\"><button>Garagem ON</button></form>"
              "<form action=\"./garagem_off\"><button>Garagem OFF</button></form>"
-             "<h1><b>AQUÁRIO:</b></h1>"
-             "<h1>Temperatura: %.2f C</h1>"
+             "<h1>AQUÁRIO</h1>"
+             "<h1>Temperatura: %.2f ºC</h1>"
              "<h1>PH: %.2f</h1>"
              "</body>"
              "</html>",
