@@ -29,7 +29,7 @@ double ph = 7.0;           // Começa 7.0 de ph
 #define MAX_PH 14.0
 #define MIN_PH 0.0
 
-#define STEP 0.4 // Passo de variação para cada movimento do joystick
+#define STEP 0.5 // Passo de variação para cada movimento do joystick
 
 // matrizes que definem quais leds acendem
 bool escritorio[NUM_PIXELS] = {
@@ -153,7 +153,7 @@ void condition_read(void)
 {
     int16_t dx, dy;
     joystick_leitura_corrigida(&dx, &dy);
-    printf("Temperatura X: %i, PH Y: %d\n", dx, dy);
+    // printf("Temperatura X: %i, PH Y: %d\n", dx, dy);
 
     // Ajuste de temperatura (eixo X)
     temperatura += (dx > 0) ? STEP : -STEP;
@@ -249,32 +249,33 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
              "HTTP/1.1 200 OK\r\n"
              "Content-Type: text/html\r\n"
              "\r\n"
-             "<!DOCTYPE html>\n"
-             "<html>\n"
-             "<head>\n"
-             "<title>Luzes</title>\n"
-             "<meta http-equiv='refresh' content='5'>" // Atualiza a página a cada 5 segundos
-             "<style>\n"
-             "body{background:#191919;font-family:sans-serif;text-align:center;margin-top:50px;}\n"
-             "h1{color:#fff;font-size:30px;margin-bottom:20px;}\n"
-             "button{background:LightGray;font-size:24px;margin:6px;padding:10px 20px;border-radius:8px;}\n"
-             "</style>\n"
-             "</head>\n"
-             "<body>\n"
-             "<h1>Luzes</h1>\n"
-             "<form action=\"./sala_on\"><button>Sala ON</button></form>\n"
-             "<form action=\"./sala_off\"><button>Sala OFF</button></form>\n"
-             "<form action=\"./quarto_on\"><button>Quarto ON</button></form>\n"
-             "<form action=\"./quarto_off\"><button>Quarto OFF</button></form>\n"
-             "<form action=\"./escritorio_on\"><button>Escritorio ON</button></form>\n"
-             "<form action=\"./escritorio_off\"><button>Escritorio OFF</button></form>\n"
-             "<form action=\"./garagem_on\"><button>Garagem ON</button></form>\n"
-             "<form action=\"./garagem_off\"><button>Garagem OFF</button></form>\n"
-             "<h1><b>AQUARIO:</b></h1>\n"
-             "<h1>Temperatura: %.2f C</h1>\n"
-             "<h1>PH: %.2f</h1>\n"
-             "</body>\n"
-             "</html>\n",
+             "<!DOCTYPE html>"
+             "<html>"
+             "<head>"
+             "<meta charset='UTF-8'>"
+             "<title>Luzes</title>"
+             "<script>setInterval(function(){location.href='/'; }, 3000);</script>"
+             "<style>"
+             "body{background:#191919;font-family:sans-serif;text-align:center;margin-top:50px;}"
+             "h1{color:#fff;font-size:30px;margin-bottom:20px;}"
+             "button{background:LightGray;font-size:24px;margin:6px;padding:10px 20px;border-radius:8px;}"
+             "</style>"
+             "</head>"
+             "<body>"
+             "<h1>ControleFácil</h1>"
+             "<form action=\"./sala_on\"><button>Sala ON</button></form>"
+             "<form action=\"./sala_off\"><button>Sala OFF</button></form>"
+             "<form action=\"./quarto_on\"><button>Quarto ON</button></form>"
+             "<form action=\"./quarto_off\"><button>Quarto OFF</button></form>"
+             "<form action=\"./escritorio_on\"><button>Escritorio ON</button></form>"
+             "<form action=\"./escritorio_off\"><button>Escritorio OFF</button></form>"
+             "<form action=\"./garagem_on\"><button>Garagem ON</button></form>"
+             "<form action=\"./garagem_off\"><button>Garagem OFF</button></form>"
+             "<h1><b>AQUÁRIO:</b></h1>"
+             "<h1>Temperatura: %.2f C</h1>"
+             "<h1>PH: %.2f</h1>"
+             "</body>"
+             "</html>",
              temperatura, ph);
 
     // Envia a resposta HTTP com o HTML
